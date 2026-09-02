@@ -1375,10 +1375,84 @@ def edit_ticket(request, ticket_id):
     ticket = get_object_or_404(Ticket, id=ticket_id)
     ticket_perm_check(request, ticket)
 
-    form = EditTicketForm(request.POST or None, instance=ticket)
-    if form.is_valid():
-        ticket = form.save()
-        return redirect(ticket)
+    if request.method == "POST":
+        form = EditTicketForm(request.POST, instance=ticket)
+        if form.is_valid():
+            old_ticket = Ticket.objects.get(id=ticket.id)
+            old_queue = old_ticket.queue
+            old_priority = old_ticket.priority
+            old_due_date = old_ticket.due_date
+            old_title = old_ticket.title
+            old_description = old_ticket.description
+            old_submitter = old_ticket.submitter_email
+
+            ticket = form.save()
+
+            changes = []
+            field_labels = {
+                "queue": _("Queue"),
+                "priority": _("Priority"),
+                "due_date": _("Due on"),
+                "title": _("Title"),
+                "description": _("Description"),
+                "submitter_email": _("Submitter E-Mail"),
+            }
+            for field in form.changed_data:
+                if field in ("secret_key", "kbitem", "merged_to"):
+                    continue
+                if field.startswith("custom_"):
+                    old_val = form.initial.get(field, "")
+                    new_val = form.cleaned_data.get(field, "")
+                    old_s = str(old_val) if old_val is not None else ""
+                    new_s = str(new_val) if new_val is not None else ""
+                    if old_s == new_s:
+                        continue
+                    changes.append((field.replace("custom_", "", 1), old_s, new_s))
+                    continue
+                label = field_labels.get(field, field)
+                if field == "queue":
+                    old_val = str(old_queue) if old_queue else ""
+                    new_val = str(ticket.queue) if ticket.queue else ""
+                elif field == "priority":
+                    old_val = str(old_priority)
+                    new_val = str(ticket.priority)
+                elif field == "due_date":
+                    old_val = str(old_due_date) if old_due_date else ""
+                    new_val = str(ticket.due_date) if ticket.due_date else ""
+                elif field == "title":
+                    old_val = old_title or ""
+                    new_val = ticket.title or ""
+                elif field == "description":
+                    old_val = old_description or ""
+                    new_val = ticket.description or ""
+                elif field == "submitter_email":
+                    old_val = old_submitter or ""
+                    new_val = ticket.submitter_email or ""
+                else:
+                    old_val = str(form.initial.get(field, ""))
+                    new_val = str(form.cleaned_data.get(field, ""))
+                if old_val == new_val:
+                    continue
+                changes.append((label, old_val, new_val))
+            if changes:
+                followup = FollowUp(
+                    ticket=ticket,
+                    date=timezone.now(),
+                    title=_("Ticket Edited"),
+                    public=True,
+                )
+                if request.user.is_authenticated and is_helpdesk_staff(request.user):
+                    followup.user = request.user
+                followup.save()
+                for field_label, old_v, new_v in changes:
+                    followup.ticketchange_set.create(
+                        field=field_label,
+                        old_value=old_v,
+                        new_value=new_v,
+                    )
+            return redirect(ticket)
+    else:
+        form = EditTicketForm(instance=ticket)
 
     return render(
         request,
