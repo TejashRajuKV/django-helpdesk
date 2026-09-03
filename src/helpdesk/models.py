@@ -504,6 +504,7 @@ class Ticket(models.Model):
     RESOLVED_STATUS = helpdesk_settings.RESOLVED_STATUS
     CLOSED_STATUS = helpdesk_settings.CLOSED_STATUS
     DUPLICATE_STATUS = helpdesk_settings.DUPLICATE_STATUS
+    WAITING_STATUS = helpdesk_settings.WAITING_STATUS
 
     STATUS_CHOICES = helpdesk_settings.TICKET_STATUS_CHOICES
     OPEN_STATUSES = helpdesk_settings.TICKET_OPEN_STATUSES

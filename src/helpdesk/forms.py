@@ -796,3 +796,26 @@ class CreateChecklistForm(ChecklistForm):
 
 class FormControlDeleteFormSet(forms.BaseInlineFormSet):
     deletion_widget = forms.CheckboxInput(attrs={"class": "form-control"})
+
+
+class TransferTicketForm(forms.Form):
+    queue = forms.ModelChoiceField(
+        label=_("Destination Queue"),
+        queryset=Queue.objects.none(),
+        widget=forms.Select(attrs={"class": "form-control"}),
+        required=True,
+    )
+
+    def __init__(self, ticket, user, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.ticket = ticket
+        queues = Queue.objects.exclude(id=ticket.queue.id)
+        self.fields["queue"].queryset = queues
+
+    def clean_queue(self):
+        queue = self.cleaned_data.get("queue")
+        if queue and queue.id == self.ticket.queue.id:
+            raise forms.ValidationError(
+                _("Destination queue must be different from current queue.")
+            )
+        return queue

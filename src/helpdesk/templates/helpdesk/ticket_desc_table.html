@@ -17,6 +17,13 @@
               <i class="fa-regular fa-edit me-2"></i>{% translate "Edit" %}
             </a>
           </li>
+          {% if ticket.status != 3 and ticket.status != 4 %}
+          <li>
+            <a href="{% url 'helpdesk:transfer' ticket.id %}" class="dropdown-item">
+              <i class="fa-solid fa-right-left me-2"></i>{% translate "Transfer" %}
+            </a>
+          </li>
+          {% endif %}
           <li>
             {% if ticket.on_hold %}
               <form class="d-inline ticket-hold" method="post" action="unhold/">

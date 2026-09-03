@@ -224,7 +224,15 @@ def update_ticket(
     if queue == -1:
         queue = ticket.queue.id
     if new_status is None:
-        new_status = ticket.status
+        if ticket.status == Ticket.WAITING_STATUS and not is_helpdesk_staff(user):
+            new_status = Ticket.OPEN_STATUS
+            ticket.on_hold = False
+        else:
+            new_status = ticket.status
+    elif new_status == Ticket.WAITING_STATUS:
+        ticket.on_hold = True
+    elif new_status == Ticket.OPEN_STATUS and ticket.status == Ticket.WAITING_STATUS:
+        ticket.on_hold = False
     if new_checklists is None:
         new_checklists = {}
 

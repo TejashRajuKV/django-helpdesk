@@ -1,6 +1,15 @@
 django-helpdesk - A Django powered ticket tracker for small businesses.
 =======================================================================
 
+Classroom / Student Version
+---------------------------
+
+If you are using this repository for the system-comprehension
+classroom exercise, start with the `Student Guide <STUDENT_GUIDE.md>`_ .
+.
+
+The original django-helpdesk documentation continues below.
+
 .. image:: https://dev.azure.com/django-helpdesk/django-helpdesk/_apis/build/status/django-helpdesk.django-helpdesk?branchName=master
   :target: https://dev.azure.com/django-helpdesk/django-helpdesk/_build/latest?definitionId=1&branchName=master
   :alt: Build Status

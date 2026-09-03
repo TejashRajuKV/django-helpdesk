@@ -68,6 +68,7 @@ from helpdesk.forms import (
     TicketDependencyForm,
     TicketForm,
     TicketResolvesForm,
+    TransferTicketForm,
     UserSettingsForm,
 )
 from helpdesk.lib import (
@@ -1462,6 +1463,55 @@ def edit_ticket(request, ticket_id):
 
 
 edit_ticket = staff_member_required(edit_ticket)
+
+
+@helpdesk_staff_member_required
+def transfer_ticket(request, ticket_id):
+    ticket = get_object_or_404(Ticket, id=ticket_id)
+    ticket_perm_check(request, ticket)
+
+    if ticket.status in (Ticket.RESOLVED_STATUS, Ticket.CLOSED_STATUS):
+        raise PermissionDenied(_("Cannot transfer a resolved or closed ticket."))
+
+    if request.method == "POST":
+        form = TransferTicketForm(ticket, request.user, request.POST)
+        if form.is_valid():
+            old_queue = ticket.queue
+            new_queue = form.cleaned_data["queue"]
+
+            if ticket.assigned_to:
+                huser = HelpdeskUser(ticket.assigned_to)
+                if not huser.can_access_queue(new_queue):
+                    ticket.assigned_to = new_queue.default_owner
+
+            ticket.queue = new_queue
+            ticket.save()
+
+            followup = FollowUp(
+                ticket=ticket,
+                date=timezone.now(),
+                title=_("Ticket Transferred"),
+                public=True,
+            )
+            if request.user.is_authenticated and is_helpdesk_staff(request.user):
+                followup.user = request.user
+            followup.save()
+
+            followup.ticketchange_set.create(
+                field=_("Queue"),
+                old_value=str(old_queue),
+                new_value=str(new_queue),
+            )
+
+            return redirect(ticket)
+    else:
+        form = TransferTicketForm(ticket, request.user)
+
+    return render(
+        request,
+        "helpdesk/transfer_ticket.html",
+        {"form": form, "ticket": ticket},
+    )
 
 
 class CreateTicketView(
