@@ -74,6 +74,7 @@ if helpdesk_settings.HELPDESK_UI_ENABLED:
             name="followup_delete",
         ),
         path("tickets/<int:ticket_id>/edit/", staff.edit_ticket, name="edit"),
+        path("tickets/<int:ticket_id>/transfer/", staff.transfer_ticket, name="transfer"),
         path(
             "tickets/<int:ticket_id>/update/", staff.update_ticket_view, name="update"
         ),

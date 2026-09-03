@@ -67,6 +67,7 @@ from helpdesk.forms import (
     TicketDependencyForm,
     TicketForm,
     TicketResolvesForm,
+    TransferTicketForm,
     UserSettingsForm,
 )
 from helpdesk.lib import (
@@ -1360,10 +1361,84 @@ def edit_ticket(request, ticket_id):
     ticket = get_object_or_404(Ticket, id=ticket_id)
     ticket_perm_check(request, ticket)
 
-    form = EditTicketForm(request.POST or None, instance=ticket)
-    if form.is_valid():
-        ticket = form.save()
-        return redirect(ticket)
+    if request.method == "POST":
+        form = EditTicketForm(request.POST, instance=ticket)
+        if form.is_valid():
+            old_ticket = Ticket.objects.get(id=ticket.id)
+            old_queue = old_ticket.queue
+            old_priority = old_ticket.priority
+            old_due_date = old_ticket.due_date
+            old_title = old_ticket.title
+            old_description = old_ticket.description
+            old_submitter = old_ticket.submitter_email
+
+            ticket = form.save()
+
+            changes = []
+            field_labels = {
+                "queue": _("Queue"),
+                "priority": _("Priority"),
+                "due_date": _("Due on"),
+                "title": _("Title"),
+                "description": _("Description"),
+                "submitter_email": _("Submitter E-Mail"),
+            }
+            for field in form.changed_data:
+                if field in ("secret_key", "kbitem", "merged_to"):
+                    continue
+                if field.startswith("custom_"):
+                    old_val = form.initial.get(field, "")
+                    new_val = form.cleaned_data.get(field, "")
+                    old_s = str(old_val) if old_val is not None else ""
+                    new_s = str(new_val) if new_val is not None else ""
+                    if old_s == new_s:
+                        continue
+                    changes.append((field.replace("custom_", "", 1), old_s, new_s))
+                    continue
+                label = field_labels.get(field, field)
+                if field == "queue":
+                    old_val = str(old_queue) if old_queue else ""
+                    new_val = str(ticket.queue) if ticket.queue else ""
+                elif field == "priority":
+                    old_val = str(old_priority)
+                    new_val = str(ticket.priority)
+                elif field == "due_date":
+                    old_val = str(old_due_date) if old_due_date else ""
+                    new_val = str(ticket.due_date) if ticket.due_date else ""
+                elif field == "title":
+                    old_val = old_title or ""
+                    new_val = ticket.title or ""
+                elif field == "description":
+                    old_val = old_description or ""
+                    new_val = ticket.description or ""
+                elif field == "submitter_email":
+                    old_val = old_submitter or ""
+                    new_val = ticket.submitter_email or ""
+                else:
+                    old_val = str(form.initial.get(field, ""))
+                    new_val = str(form.cleaned_data.get(field, ""))
+                if old_val == new_val:
+                    continue
+                changes.append((label, old_val, new_val))
+            if changes:
+                followup = FollowUp(
+                    ticket=ticket,
+                    date=timezone.now(),
+                    title=_("Ticket Edited"),
+                    public=True,
+                )
+                if request.user.is_authenticated and is_helpdesk_staff(request.user):
+                    followup.user = request.user
+                followup.save()
+                for field_label, old_v, new_v in changes:
+                    followup.ticketchange_set.create(
+                        field=field_label,
+                        old_value=old_v,
+                        new_value=new_v,
+                    )
+            return redirect(ticket)
+    else:
+        form = EditTicketForm(instance=ticket)
 
     return render(
         request,
@@ -1373,6 +1448,55 @@ def edit_ticket(request, ticket_id):
 
 
 edit_ticket = staff_member_required(edit_ticket)
+
+
+@helpdesk_staff_member_required
+def transfer_ticket(request, ticket_id):
+    ticket = get_object_or_404(Ticket, id=ticket_id)
+    ticket_perm_check(request, ticket)
+
+    if ticket.status in (Ticket.RESOLVED_STATUS, Ticket.CLOSED_STATUS):
+        raise PermissionDenied(_("Cannot transfer a resolved or closed ticket."))
+
+    if request.method == "POST":
+        form = TransferTicketForm(ticket, request.user, request.POST)
+        if form.is_valid():
+            old_queue = ticket.queue
+            new_queue = form.cleaned_data["queue"]
+
+            if ticket.assigned_to:
+                huser = HelpdeskUser(ticket.assigned_to)
+                if not huser.can_access_queue(new_queue):
+                    ticket.assigned_to = new_queue.default_owner
+
+            ticket.queue = new_queue
+            ticket.save()
+
+            followup = FollowUp(
+                ticket=ticket,
+                date=timezone.now(),
+                title=_("Ticket Transferred"),
+                public=True,
+            )
+            if request.user.is_authenticated and is_helpdesk_staff(request.user):
+                followup.user = request.user
+            followup.save()
+
+            followup.ticketchange_set.create(
+                field=_("Queue"),
+                old_value=str(old_queue),
+                new_value=str(new_queue),
+            )
+
+            return redirect(ticket)
+    else:
+        form = TransferTicketForm(ticket, request.user)
+
+    return render(
+        request,
+        "helpdesk/transfer_ticket.html",
+        {"form": form, "ticket": ticket},
+    )
 
 
 class CreateTicketView(

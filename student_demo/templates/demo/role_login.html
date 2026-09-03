@@ -3,60 +3,225 @@
 
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <title>
         {{ role }} Login - {{ demo.organization.name }}
     </title>
+    <style>
+        :root {
+          --primary: {{ demo.organization.primary_color }};
+          --accent: {{ demo.organization.accent_color }};
+          --paper: #ffffff;
+          --ink: #20252b;
+          --muted: #66717d;
+          --bg: #f5f7fa;
+          --border: #e2e8f0;
+          --focus-ring: rgba(99, 102, 241, 0.15);
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+            color: var(--ink);
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e9f2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 440px;
+            background: var(--paper);
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 16px -6px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.02);
+            border-top: 6px solid var(--accent);
+            padding: 2.5rem;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .login-container:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .org-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+
+        .org-tagline {
+            font-size: 0.875rem;
+            color: var(--muted);
+            margin-bottom: 1.5rem;
+        }
+
+        .title {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: var(--ink);
+            letter-spacing: -0.025em;
+        }
+
+        .error-message {
+            background-color: #fef2f2;
+            border: 1px solid #fca5a5;
+            color: #b91c1c;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #4a5568;
+        }
+
+        /* Target the inputs dynamically rendered by Django form helper */
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+            color: var(--ink);
+            background-color: #f8fafc;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .form-group input:focus {
+            border-color: var(--primary);
+            background-color: #ffffff;
+            box-shadow: 0 0 0 3px var(--focus-ring);
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 0.875rem;
+            background-color: var(--primary);
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            margin-top: 0.5rem;
+        }
+
+        .submit-btn:hover {
+            background-color: var(--primary);
+            opacity: 0.9;
+            transform: translateY(-1px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .footer {
+            margin-top: 2rem;
+            text-align: center;
+            border-top: 1px solid var(--border);
+            padding-top: 1.25rem;
+        }
+
+        .footer-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: color 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .footer-link:hover {
+            opacity: 0.8;
+            text-decoration: underline;
+        }
+    </style>
 </head>
 
 <body>
 
-    <h1>{{ demo.organization.name }}</h1>
+    <div class="login-container">
+        <div class="header">
+            <div class="org-name">{{ demo.organization.name }}</div>
+            <div class="org-tagline">{{ demo.organization.tagline }}</div>
+            <h1 class="title">{{ role }} Login</h1>
+        </div>
 
-    <p>
-        {{ demo.organization.tagline }}
-    </p>
+        {% if error_message %}
+            <div class="error-message">
+                <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                </svg>
+                <span>{{ error_message }}</span>
+            </div>
+        {% endif %}
 
-    <h2>{{ role }} Login</h2>
+        <form method="post">
+            {% csrf_token %}
 
-    {% if error_message %}
-        <p style="color: red;">
-            {{ error_message }}
-        </p>
-    {% endif %}
+            <div class="form-group">
+                <label class="label" for="{{ form.username.id_for_label }}">
+                    Username
+                </label>
+                {{ form.username }}
+            </div>
 
-    <form method="post">
+            <div class="form-group">
+                <label class="label" for="{{ form.password.id_for_label }}">
+                    Password
+                </label>
+                {{ form.password }}
+            </div>
 
-        {% csrf_token %}
+            <button type="submit" class="submit-btn">
+                Sign in
+            </button>
+        </form>
 
-        <p>
-            <label for="{{ form.username.id_for_label }}">
-                Username
-            </label>
-
-            {{ form.username }}
-        </p>
-
-        <p>
-            <label for="{{ form.password.id_for_label }}">
-                Password
-            </label>
-
-            {{ form.password }}
-        </p>
-
-        <button type="submit">
-            Sign in
-        </button>
-
-    </form>
-
-    <p>
-        <a href="{% url 'demo-home' %}">
-            Back to role selection
-        </a>
-    </p>
+        <div class="footer">
+            <a class="footer-link" href="{% url 'demo-home' %}">
+                &larr; Back to role selection
+            </a>
+        </div>
+    </div>
 
 </body>
-
 </html>
